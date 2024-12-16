@@ -1,0 +1,64 @@
+Steps to install DLC on HPC
+
+
+1. Start interactive session with atleast 16gb and a GPU (any server works -recommend ocelote)
+interactive -a scowen -n3 -g 
+
+2. Load python module
+module load python/3.11
+
+3. Generate virtual environment in location - ie group home or elsewhere0 (here its in in the DLC folder)
+python3 -m venv --system-site-packages dlc_venv
+
+4. Activate virtual environment
+source /groups/scowen/DLC/dlc_venv/bin/activate
+
+5. Load conda and pytorch
+module load anaconda/2024.06
+module load pytorch/nvidia
+module load tensorflow
+
+6. Conda Prep steps - Turn off conda auto activate features
+conda init bash
+source ~/.bashrc
+conda config --set auto_activate_base false
+
+6. Create New conda environment _ THis is for Pytorch Instructions
+conda create -n deeplabcut python=3.10
+conda activate deeplabcut
+
+# There is no need to install pytorch.. should be loaded from above, Run following line to ensure it has been installed
+python3 -c "import torch ; print(torch.cuda.is_available())"
+
+#The result should be true
+
+conda install -c conda-forge pytables==3.8.0
+pip install "git+https://github.com/DeepLabCut/DeepLabCut.git@pytorch_dlc#egg=deeplabcut[gui,modelzoo,wandb]"
+
+7. Thats it and it should be ready to run. Change your config.yaml to have a batch size of 16 and the updated path on the
+server and update the folders. 
+
+In your SLURM File just have to add the following command at the beginning. 
+source ~/.bashrc
+
+
+NOTES:
+1) I have also attached my example Slurm script and run batch script.. I have been testing it with all videos in the
+samefolder for now. It can be easily edited for different flder structures
+
+2) I highly recommend splitting videos first - I split my ~2hr videos into 20 min each and it runs much faster. I do this 
+on a local machine, It hardly takes any time at all. (Also sanity check there was no loss, I compared the csv files of the 
+split videos and full video and with prob=0.0 and had the same no. of values) . 
+
+Steps:
+	1) Download https://www.ffmpeg.org/
+	2) Install and make sure you add to path or conda / python won't recognize it 
+	3) Run the python scripts to split and rejoin respectively (the paths need to be changed)
+
+3) On The HPC its better to run and array of about 50 and submit multiple jobs - Ocelote also typically has much shorter
+weight times but the no. of tasks -n is lower than what can run on Puma (GPU sizes) 
+
+4) I have only installed DLC 3.0. I think the docker can be used for the older version with tensorflow. I only tried to run
+it with the tensorflow engine once and it did some funky stuff so not sure if it works. The email with Stephen and the HPC 
+has instructions on how to install the GUI on an interactive desktop if that is ever needed. 
+
