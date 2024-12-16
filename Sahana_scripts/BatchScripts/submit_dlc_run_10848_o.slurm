@@ -8,7 +8,7 @@
 #SBATCH --cpus-per-task=12        # Number of CPUs per task
 #SBATCH --partition=gpu_standard      # Partition
 #SBATCH --gres=gpu:2             # GPU (16GB)
-#SBATCH --array=0-209              # Adjust this range after checking how many videos you have
+#SBATCH --array=0-104              # Adjust this range after checking how many videos you have
 
 module load anaconda/2024.06
 source ~/.bashrc

@@ -1,18 +1,15 @@
 #!/usr/bin/env python
 import os
 import importlib.util
-import math
+import csv
 
 ## INPUT PARAMS
-# Directory with .mp4 files - assumes this as vid type
-input_dir = r"C:\Users\sahanasrivathsa\Documents\SYNC\Work\BarnesLab\CODE\DEEPLABCUT\Videos_ToAnalyze\10842"
-output_dir = os.path.join(input_dir, "split_output")
+#Set base dir - changed code so it looks for each folder within this and then iterates over teh sub folders
+#See below for execution
+base_dir=r"O:\DEEPLABCUT\CHEETAH_VT_MP4"
+n_splits=10
 
-# Mkdir
-if not os.path.exists(output_dir):
-    os.makedirs(output_dir)
-
-## Load functions from ffmpeg-split.py which should be in the same forlder or path
+##Load functions from ffmpeg-split.py which should be in the same forlder or path
 spec = importlib.util.spec_from_file_location("ffmpeg_split", "ffmpeg-split.py")
 ffmpeg_split = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(ffmpeg_split)
@@ -20,44 +17,71 @@ spec.loader.exec_module(ffmpeg_split)
 get_video_length = ffmpeg_split.get_video_length
 ceildiv = ffmpeg_split.ceildiv
 
-def split_video_into_10_parts(filename, output_dir):
-    length = get_video_length(filename)
-    # Compute approximate segment length (it isnt uniform but roughly)
-    num_chunks = 10
-    split_length = length // num_chunks
-    if split_length <= 0:
-        print(f"Video {filename} is too short to split into 10 parts.")
+#for ffailed functions
+failed_videos = []
+# FUNCTIONSS
+def split_video_n_parts(filename, output_dir,n_splits):
+    if not os.path.exists(filename):
+        print(f"Input file {filename} does not exist. Skipping...")
+        failed_videos.append(filename)
         return
 
-   
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
+    try:
+        length = get_video_length(filename)
+        # Compute approximate segment length (it isnt uniform but roughly)
+        num_chunks = n_splits
+        split_length = length // num_chunks
+        if split_length <= 0:
+            print(f"Video {filename} is too short to split into 10 parts.")
+            return
 
-    # ffmpeg command template
-    vcodec = "copy"
-    acodec = "copy"
-    extra = ""
-    split_cmd = ["ffmpeg", "-i", filename, "-vcodec", vcodec, "-acodec", acodec] + extra.split()
 
-    filebase = os.path.splitext(os.path.basename(filename))[0]
-    fileext = os.path.splitext(filename)[1]
+        if not os.path.exists(output_dir):
+            os.makedirs(output_dir)
 
-    for n in range(num_chunks):
-        start = split_length * n
-        output_path = os.path.join(output_dir, f"{filebase}_split{n+1}{fileext}")
-        split_args = ["-ss", str(start), "-t", str(split_length), output_path]
+        # ffmpeg command template
+        vcodec = "copy"
+        acodec = "copy"
+        extra = ""
+        split_cmd = ["ffmpeg", "-n", "-i",filename, "-vcodec", vcodec, "-acodec", acodec] + extra.split()
 
-        print("About to run:", " ".join(split_cmd + split_args))
-        ffmpeg_split.subprocess.check_output(split_cmd + split_args)
+        filebase = os.path.splitext(os.path.basename(filename))[0]
+        fileext = os.path.splitext(filename)[1]
 
-# Iterate over all mp4 files in input_dir
-for f in os.listdir(input_dir):
-    if f.lower().endswith(".mp4"):
-        # Check if filename already contains "_split"
-        if "_split" in f:
-            print(f"Skipping {f} because it already appears to be split.")
-            continue
+        for n in range(num_chunks):
+            start = split_length * n
+            output_path = os.path.join(output_dir, f"{filebase}_split{n+1}{fileext}")
+            split_args = ["-ss", str(start), "-t", str(split_length), output_path]
 
-        full_path = os.path.join(input_dir, f)
-        print(f"Splitting {full_path} into 10 parts...")
-        split_video_into_10_parts(full_path, output_dir)
+            print("About to run:", " ".join(split_cmd + split_args))
+            ffmpeg_split.subprocess.check_output(split_cmd + split_args)
+
+    except (subprocess.CalledProcessError, Exception) as e:
+        print(f"Error processing {filename}: {e}")
+        failed_videos.append(filename)
+
+## RUNNING THE CODE
+#Iterate over all the subdirectories in the base directory and look for .mp4 files within them
+for rat_dir in os.listdir(base_dir):
+    rat_path = os.path.join(base_dir, rat_dir)
+    if not os.path.isdir(rat_path):  #Skip if it's not a dir
+        continue
+
+    print(f"Processing rat folder: {rat_dir}")
+
+    #Output directory for split videos inside each rat folder (subfldr)
+    output_dir = os.path.join(rat_path, "split_output")
+
+    #Process all .mp4 files in the rat folder or subfldr
+    for f in os.listdir(rat_path):
+        if f.lower().endswith(".mp4"):
+            #Skip already split files
+            if "_split" in f:
+                print(f"Skipping {f} because it is already split.")
+                continue
+
+            full_path = os.path.join(rat_path, f)
+            print(f"Splitting {full_path} into {n_splits} parts")
+            split_video_n_parts(full_path, output_dir,n_splits)
+
+#%%
