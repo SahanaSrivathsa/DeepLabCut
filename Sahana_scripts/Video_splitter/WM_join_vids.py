@@ -14,7 +14,7 @@ import subprocess
 
 
 # Directory containing split files
-input_dir = r"C:\Users\sahanasrivathsa\Documents\SYNC\Work\BarnesLab\CODE\DEEPLABCUT\Videos_ToAnalyze\10842\Analyzed"  # Change to your directory
+input_dir = r"O:\DEEPLABCUT\CHEETAH_VT_MP4\10848\Analyzed"  # Change to your directory
 os.chdir(input_dir)
 #Make directory for merged files
 merged_dir = os.path.join(input_dir, "Merged")
