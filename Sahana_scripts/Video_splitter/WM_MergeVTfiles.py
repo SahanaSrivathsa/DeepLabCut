@@ -1,16 +1,14 @@
-#!/usr/bin/env python
 import os
 import re
 import subprocess
-import shutil
 
-# Base directory where rat folders are located
+# Params to change
+RAT_IDS = [ '10993']
+
+# Directories
 BASE_DIR = r"O:\DEEPLABCUT\CHEETAH_VT_MP4"
 
-# List of rat IDs
-RAT_IDS = ['10993']
-
-# Regular expression to extract session, VT number, and the rest of the filename
+# Regular expression pattern to extract session and VT numbers
 VT_PATTERN = re.compile(r"^(.*_VT)(\d+)(.*)(\.(mp4|csv))$")
 
 def group_by_session_vt(files_list):
@@ -45,7 +43,7 @@ def join_mp4_files(input_dir, file_list, output_name):
             f.write(f"file '{os.path.join(input_dir, fn)}'\n")
 
     cmd = ["ffmpeg", "-f", "concat", "-safe", "0", "-i", concat_filename, "-c", "copy", output_name]
-    subprocess.check_call(cmd)
+    subprocess.run(cmd, check=True)
     os.remove(concat_filename)
 
 def join_csv_files(input_dir, file_list, output_name):
@@ -60,13 +58,14 @@ def join_csv_files(input_dir, file_list, output_name):
                     if len(lines) > 3:
                         outfile.writelines(lines[1:])
 
-def move_original_files(input_dir, file_list, output_dir):
-    """Moves original source files used in merging to a separate directory."""
+def move_original_files(input_dir, files_to_move, output_dir):
+    """Moves the original source files used in merging to a separate directory."""
     os.makedirs(output_dir, exist_ok=True)
-    for file in file_list:
+    for file in files_to_move:
         src_path = os.path.join(input_dir, file)
         dest_path = os.path.join(output_dir, file)
-        shutil.move(src_path, dest_path)
+        if os.path.exists(src_path):  # Ensure file still exists before moving
+            shutil.move(src_path, dest_path)
 
 def process_rat_folder(rat_id):
     """Processes the Merged directory of a given rat inside Analyzed."""
@@ -78,7 +77,7 @@ def process_rat_folder(rat_id):
 
     print(f"Processing rat {rat_id} in {input_dir}")
 
-    # Create folder for original source files that were merged
+    # Folder where merged source files will be moved after all merging is done
     moved_files_dir = os.path.join(input_dir, "Files_with_multiple_parts_per_sess")
     os.makedirs(moved_files_dir, exist_ok=True)
 
@@ -90,9 +89,12 @@ def process_rat_folder(rat_id):
     mp4_groups = group_by_session_vt(mp4_files)
     csv_groups = group_by_session_vt(csv_files)
 
+    # Keep track of all files that were merged
+    files_to_move = []
+
     # Process MP4 files, merging only those with VT2 or VT3
     for base, files_info in mp4_groups.items():
-        if any(vt > 1 for vt, _ in files_info):
+        if any(vt > 1 for vt, _ in files_info):  # Merge only if VT2 or VT3 exists
             file_list = [x[1] for x in files_info]
             vt1_name = file_list[0]  # Use VT1 filename as base
             merged_name = vt1_name.replace(".mp4", "_merged.mp4")
@@ -101,12 +103,11 @@ def process_rat_folder(rat_id):
             if len(file_list) > 1:
                 print(f"Merging MP4 files into {output_mp4}")
                 join_mp4_files(input_dir, file_list, output_mp4)
-                print(f"Moving original MP4 files to {moved_files_dir}")
-                move_original_files(input_dir, file_list, moved_files_dir)
+                files_to_move.extend(file_list)  # Store files for later moving
 
     # Process CSV files, merging only those with VT2 or VT3
     for base, files_info in csv_groups.items():
-        if any(vt > 1 for vt, _ in files_info):
+        if any(vt > 1 for vt, _ in files_info):  # Merge only if VT2 or VT3 exists
             file_list = [x[1] for x in files_info]
             vt1_name = file_list[0]  # Use VT1 filename as base
             merged_name = vt1_name.replace(".csv", "_merged.csv")
@@ -115,14 +116,19 @@ def process_rat_folder(rat_id):
             if len(file_list) > 1:
                 print(f"Merging CSV files into {output_csv}")
                 join_csv_files(input_dir, file_list, output_csv)
-                print(f"Moving original CSV files to {moved_files_dir}")
-                move_original_files(input_dir, file_list, moved_files_dir)
+                files_to_move.extend(file_list)  # Store files for later moving
+
+    # Move original files that were merged after all processing is complete
+    if files_to_move:
+        print(f"Moving original source files to {moved_files_dir}")
+        move_original_files(input_dir, files_to_move, moved_files_dir)
 
 def main():
-    """Iterates through all rats and processes their folders."""
+    """Iterate through each rat folder and process it"""
     for rat_id in RAT_IDS:
-        process_rat_folder(rat_id)
-        print(f"Finished processing rat {rat_id}")
+        rat_folder = os.path.join(BASE_DIR, rat_id)
+        process_rat_folder(rat_folder)
+
 
 if __name__ == "__main__":
     main()
