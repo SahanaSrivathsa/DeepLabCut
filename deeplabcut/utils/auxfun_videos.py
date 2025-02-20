@@ -613,3 +613,6 @@ def draw_bbox(video):
 
     plt.close(fig)
     return bbox
+
+
+#%%

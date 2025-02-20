@@ -8,7 +8,7 @@ prefix = '/groups/barnesca/Deeplabcut/DLC_Projects'
 projectpath = os.path.join(prefix, project)
 config = os.path.join(projectpath, 'config.yaml')
 
-basepath = '/xdisk/barnesca/sahanasrivathsa/Deeplabcut/VideosToAnalyze/10855'
+basepath = '/xdisk/barnesca/sahanasrivathsa/Deeplabcut/VideosToReAnalyze/10855'
 dest_folder=os.path.join(basepath, 'Analyzed')
 if not os.path.exists(dest_folder):
     os.makedirs(dest_folder)
@@ -33,7 +33,7 @@ else:
 video = vid_files[idx]
 
 # Run DLC commands on the selected video
-deeplabcut.analyze_videos(config, [video], shuffle=shuffle, videotype=vtype, save_as_csv=True)
+deeplabcut.analyze_videos(config, [video], shuffle=shuffle, videotype=vtype, save_as_csv=True,,destfolder=dest_folder)
 
 deeplabcut.filterpredictions(config, [video], shuffle=shuffle, trainingsetindex=trainingsetindex,
                              filtertype='arima', p_bound=0.01, ARdegree=3, MAdegree=1, alpha=0.01,

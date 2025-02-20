@@ -1,18 +1,19 @@
+#!/usr/bin/env python
 import os
 import re
 import subprocess
 
-# Params to change
-RAT_IDS = [ '10993']
-
-# Directories
+# Base directory where rat folders are located
 BASE_DIR = r"O:\DEEPLABCUT\CHEETAH_VT_MP4"
 
-# Regular expression pattern to extract session and VT numbers
+# List of rat IDs
+RAT_IDS = ['10993']
+
+# Regular expression pattern to extract session, VT number, and the rest of the filename
 VT_PATTERN = re.compile(r"^(.*_VT)(\d+)(.*)(\.(mp4|csv))$")
 
 def group_by_session_vt(files_list):
-    """Groups files by session, ensuring VT files are correctly ordered."""
+    """Groups files by base name and session, ensuring VT files are correctly ordered."""
     sessions = {}
 
     for fname in files_list:
@@ -22,7 +23,7 @@ def group_by_session_vt(files_list):
 
         base, vt, rest, ext, _ = match.groups()
         vt = int(vt)  # Convert VT number to integer
-        session_key = f"{base}{rest}"  # Use filename without VT number as key
+        session_key = f"{base}{rest}"  # Use filename without VT number as the key
 
         if session_key not in sessions:
             sessions[session_key] = []
@@ -43,7 +44,7 @@ def join_mp4_files(input_dir, file_list, output_name):
             f.write(f"file '{os.path.join(input_dir, fn)}'\n")
 
     cmd = ["ffmpeg", "-f", "concat", "-safe", "0", "-i", concat_filename, "-c", "copy", output_name]
-    subprocess.run(cmd, check=True)
+    subprocess.run(cmd, check=True)  # Ensures FFmpeg runs correctly and doesn't hang
     os.remove(concat_filename)
 
 def join_csv_files(input_dir, file_list, output_name):
@@ -65,7 +66,7 @@ def move_original_files(input_dir, files_to_move, output_dir):
         src_path = os.path.join(input_dir, file)
         dest_path = os.path.join(output_dir, file)
         if os.path.exists(src_path):  # Ensure file still exists before moving
-            shutil.move(src_path, dest_path)
+            os.rename(src_path, dest_path)
 
 def process_rat_folder(rat_id):
     """Processes the Merged directory of a given rat inside Analyzed."""
@@ -122,13 +123,14 @@ def process_rat_folder(rat_id):
     if files_to_move:
         print(f"Moving original source files to {moved_files_dir}")
         move_original_files(input_dir, files_to_move, moved_files_dir)
+    else:
+        print("No files were moved.")
 
 def main():
-    """Iterate through each rat folder and process it"""
+    """Iterates through all rats and processes their folders."""
     for rat_id in RAT_IDS:
-        rat_folder = os.path.join(BASE_DIR, rat_id)
-        process_rat_folder(rat_folder)
-
+        process_rat_folder(rat_id)
+        print(f"Finished processing rat {rat_id}")
 
 if __name__ == "__main__":
     main()
