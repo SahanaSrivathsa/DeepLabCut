@@ -15,10 +15,11 @@ import pickle
 from pathlib import Path
 import numpy as np
 import pandas as pd
-from scipy.spatial import cKDTree
 from tqdm import tqdm
 from typing import List
 
+from deeplabcut.core import crossvalutils
+from deeplabcut.core.crossvalutils import find_closest_neighbors
 from deeplabcut.pose_estimation_tensorflow.core.evaluate import (
     make_results_file,
     keypoint_error,
@@ -27,7 +28,6 @@ from deeplabcut.pose_estimation_tensorflow.core.evaluate import (
 )
 from deeplabcut.pose_estimation_tensorflow.training import return_train_network_path
 from deeplabcut.pose_estimation_tensorflow.config import load_config
-from deeplabcut.pose_estimation_tensorflow.lib import crossvalutils
 from deeplabcut.utils import visualization
 
 
@@ -53,24 +53,6 @@ def _compute_stats(df):
     ).stack(level=1)
 
 
-def _find_closest_neighbors(xy_true, xy_pred, k=5):
-    n_preds = xy_pred.shape[0]
-    tree = cKDTree(xy_pred)
-    dist, inds = tree.query(xy_true, k=k)
-    idx = np.argsort(dist[:, 0])
-    neighbors = np.full(len(xy_true), -1, dtype=int)
-    picked = set()
-    for i, ind in enumerate(inds[idx]):
-        for j in ind:
-            if j not in picked:
-                picked.add(j)
-                neighbors[idx[i]] = j
-                break
-        if len(picked) == n_preds:
-            break
-    return neighbors
-
-
 def _calc_prediction_error(data):
     _ = data.pop("metadata", None)
     dists = []
@@ -78,7 +60,7 @@ def _calc_prediction_error(data):
         gt = np.concatenate(dict_["groundtruth"][1])
         xy = np.concatenate(dict_["prediction"]["coordinates"][0])
         p = np.concatenate(dict_["prediction"]["confidence"])
-        neighbors = _find_closest_neighbors(gt, xy)
+        neighbors = find_closest_neighbors(gt, xy)
         found = neighbors != -1
         gt2 = gt[found]
         xy2 = xy[neighbors[found]]
@@ -280,7 +262,7 @@ def evaluate_multianimal_full(
                     cfg,
                     shuffle,
                     trainFraction,
-                    training_iterations,
+                    trainingsiterations=training_iterations,
                     modelprefix=modelprefix,
                 )
                 print(
@@ -321,6 +303,7 @@ def evaluate_multianimal_full(
                     ) = predict.setup_pose_prediction(test_pose_cfg)
 
                     PredicteData = {}
+                    predicted_poses = np.full((len(Data), len(all_bpts), 2), np.nan)
                     dist = np.full((len(Data), len(all_bpts)), np.nan)
                     conf = np.full_like(dist, np.nan)
                     print("Network Evaluation underway...")
@@ -403,7 +386,7 @@ def evaluate_multianimal_full(
                                 # Pick the predictions closest to ground truth,
                                 # rather than the ones the model has most confident in
                                 xy_gt_values = xy_gt.iloc[inds_gt].values
-                                neighbors = _find_closest_neighbors(
+                                neighbors = find_closest_neighbors(
                                     xy_gt_values, xy, k=3
                                 )
                                 found = neighbors != -1
@@ -414,6 +397,7 @@ def evaluate_multianimal_full(
                                 inds = np.flatnonzero(all_bpts == bpt)
                                 sl = imageindex, inds[inds_gt[found]]
                                 dist[sl] = min_dists
+                                predicted_poses[sl] = xy[neighbors[found]]
                                 conf[sl] = probs_pred[n_joint][
                                     neighbors[found]
                                 ].squeeze()
@@ -448,6 +432,24 @@ def evaluate_multianimal_full(
                             visualization.erase_artists(ax)
 
                     sess.close()  # closes the current tf session
+
+                    # Save predicted poses
+                    coordinates = ["x", "y", "conf"]
+                    # Create the new MultiIndex by repeating the existing index and adding the new level
+                    poses_multi_index = pd.MultiIndex.from_tuples(
+                        [(scorer, individual, bodypart, coordinate)
+                         for scorer, individual, bodypart in df.index
+                         for coordinate in coordinates],
+                        names=df.index.names + ['coordinates']
+                    )
+
+                    predicted_poses = np.concatenate((predicted_poses, np.expand_dims(conf, axis=-1)), axis=-1)
+                    predicted_poses = predicted_poses.reshape(predicted_poses.shape[0], -1)
+                    df_predicted_poses = pd.DataFrame(predicted_poses, columns=poses_multi_index)
+                    write_poses_path = os.path.join(
+                        evaluationfolder, f"predicted_poses_{training_iterations}.h5"
+                    )
+                    df_predicted_poses.to_hdf(write_poses_path, key="df_with_missing")
 
                     # Compute all distance statistics
                     df_dist = pd.DataFrame(dist, columns=df.index)
@@ -670,3 +672,7 @@ def evaluate_multianimal_full(
                 make_results_file(final_result, evaluationfolder, DLCscorer)
 
     os.chdir(str(start_path))
+
+
+# backwards compatibility
+_find_closest_neighbors = find_closest_neighbors
