@@ -4,7 +4,7 @@ import shutil
 import importlib.util
 # CONFIG PARAMS
 cv2_fpath=r"C:\Users\sahanasrivathsa\Documents\SYNC\Work\BarnesLab\CODE\Github\DeepLabCut\Sahana_scripts\Video_splitter\utils\cv2_split_video.py"
-base_fldr= r"O:\DEEPLABCUT\NEW_VidsToAnalyze\10842"
+base_fldr= r"O:\DEEPLABCUT\NEW_VidsToAnalyze\10855\OriginalVideos"
 
 
 def merge_vt_files_in_folder(base_folder, cv2_split_video_path):

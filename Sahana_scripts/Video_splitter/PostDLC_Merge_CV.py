@@ -6,7 +6,7 @@ import importlib.util
 
 # CONFIG PARAMS
 cv2_fpath=r"C:\Users\sahanasrivathsa\Documents\SYNC\Work\BarnesLab\CODE\Github\DeepLabCut\Sahana_scripts\Video_splitter\utils\cv2_split_video.py"
-base_fldr= r"O:\DEEPLABCUT\NEW_VidsToAnalyze\11041\Analyzed"
+base_fldr= r"O:\DEEPLABCUT\NEW_VidsToAnalyze\10944\Analyzed"
 
 def merge_csv_files_no_loss(files_to_merge, output_path):
     """
@@ -111,11 +111,11 @@ def merge_10_splits_in_folder(base_folder, cv2_split_video_path):
             out_path = os.path.join(merged_folder, out_name)
 
             if ext == ".mp4":
-                print(f"Merging 10 .mp4 splits for {key} -> {out_name}")
+                #print(f"Merging 10 .mp4 splits for {key} -> {out_name}")
                 merge_mp4_func(ordered_files, out_path)
                 results[key] = out_path
             elif ext == ".csv":
-                print(f"Merging 10 .csv splits for {key} -> {out_name}")
+                #print(f"Merging 10 .csv splits for {key} -> {out_name}")
                 merge_csv_files_no_loss(ordered_files, out_path)
                 results[key] = out_path
             else:

@@ -106,17 +106,10 @@ def merge_videos_cv2_no_loss(files_to_merge, output_path):
     using OpenCV reading/writing. No frames lost or duplicated.
     NOTE: All videos must share the same resolution & FPS, or additional processing is needed.
 
-    Parameters
-    ----------
-    files_to_merge : list of str
-        Paths to the video files, in the exact order to be merged.
-    output_path : str
-        Where to save the merged video.
+    Params
+    files_to_merge : str list -Paths to the video files, in the exact order to be merged.
+    output_path : str- Where to save the merged video.
 
-    Returns
-    -------
-    output_path : str
-        The final merged file path (or None if something fails).
     """
     valid_files = [f for f in files_to_merge if f and os.path.isfile(f)]
     if not valid_files:
